@@ -1,8 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart'; // අලුතින් දැම්මා
 import 'package:love_pdf/presentation/screens/image_to_pdf_screen.dart';
+import 'package:love_pdf/presentation/screens/pdf_preview_screen.dart'; // අලුතින් දැම්මා
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
+
+  // --- New Logic: Pick and Open PDF ---
+  Future<void> _pickAndOpenPdf(BuildContext context) async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+    );
+
+    if (result != null && result.files.single.path != null) {
+      String path = result.files.single.path!;
+      String name = result.files.single.name;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PdfPreviewScreen(
+            filePath: path, 
+            fileName: name
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +45,6 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Section 1: Core Tools ---
             _buildSectionHeader("Core PDF Tools"),
             const SizedBox(height: 15),
             GridView.count(
@@ -33,26 +57,28 @@ class HomeScreen extends StatelessWidget {
               children: [
                 _buildToolCard(
                   context, "Merge PDF", Icons.merge_type, Colors.blue, 
-                  () { /* TODO: Navigate to Merge Screen */ }
+                  () { /* TODO: Merge PDF */ }
                 ),
                 _buildToolCard(
                   context, "Split PDF", Icons.call_split, Colors.orange, 
-                  () { /* TODO: Navigate to Split Screen */ }
+                  () { /* TODO: Split PDF */ }
                 ),
                 _buildToolCard(
                   context, "Edit PDF", Icons.edit_note, Colors.green, 
-                  () { /* TODO: Navigate to Edit Screen */ }
+                  () { /* TODO: Edit PDF */ }
                 ),
+                // --- Updated View PDF Card ---
                 _buildToolCard(
                   context, "View PDF", Icons.picture_as_pdf, Colors.redAccent, 
-                  () { /* TODO: Navigate to Viewer */ }
+                  () { 
+                    _pickAndOpenPdf(context); // Function එක call කළා
+                  }
                 ),
               ],
             ),
 
             const SizedBox(height: 30),
 
-            // --- Section 2: Converters ---
             _buildSectionHeader("Converters"),
             const SizedBox(height: 15),
             GridView.count(
@@ -63,25 +89,22 @@ class HomeScreen extends StatelessWidget {
               mainAxisSpacing: 15,
               childAspectRatio: 1.1,
               children: [
- // home_screen.dart ඇතුළේ...
-
-        _buildToolCard(
-          context, "Image to PDF", Icons.image, Colors.purple, 
-          () { 
-          // මෙන්න මේ කොටස අලුතින් දාන්න
-              Navigator.push(
-                context, 
-                MaterialPageRoute(builder: (context) => const ImageToPdfScreen())
-              );
-            }
-          ),
-                          _buildToolCard(
+                _buildToolCard(
+                  context, "Image to PDF", Icons.image, Colors.purple, 
+                  () { 
+                    Navigator.push(
+                      context, 
+                      MaterialPageRoute(builder: (context) => const ImageToPdfScreen())
+                    );
+                  }
+                ),
+                _buildToolCard(
                   context, "Text to PDF", Icons.text_fields, Colors.teal, 
-                  () { /* TODO: Navigate to Text to PDF */ }
+                  () { /* TODO: Text to PDF */ }
                 ),
                 _buildToolCard(
                   context, "PDF to Image", Icons.collections, Colors.indigo, 
-                  () { /* TODO: Navigate to PDF to Image */ }
+                  () { /* TODO: PDF to Image */ }
                 ),
               ],
             ),
@@ -91,7 +114,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // Section Header Widget
   Widget _buildSectionHeader(String title) {
     return Text(
       title,
@@ -103,7 +125,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // Card Widget
   Widget _buildToolCard(BuildContext context, String title, IconData icon, Color color, VoidCallback onTap) {
     return Container(
       decoration: BoxDecoration(
