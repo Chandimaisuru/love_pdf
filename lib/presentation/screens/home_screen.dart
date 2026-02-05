@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:love_pdf/presentation/screens/image_to_pdf_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -62,11 +63,19 @@ class HomeScreen extends StatelessWidget {
               mainAxisSpacing: 15,
               childAspectRatio: 1.1,
               children: [
-                _buildToolCard(
-                  context, "Image to PDF", Icons.image, Colors.purple, 
-                  () { /* TODO: Navigate to Image to PDF */ }
-                ),
-                _buildToolCard(
+ // home_screen.dart ඇතුළේ...
+
+        _buildToolCard(
+          context, "Image to PDF", Icons.image, Colors.purple, 
+          () { 
+          // මෙන්න මේ කොටස අලුතින් දාන්න
+              Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (context) => const ImageToPdfScreen())
+              );
+            }
+          ),
+                          _buildToolCard(
                   context, "Text to PDF", Icons.text_fields, Colors.teal, 
                   () { /* TODO: Navigate to Text to PDF */ }
                 ),
