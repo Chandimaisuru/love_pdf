@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart'; // අලුතින් දැම්මා
 import 'package:love_pdf/presentation/screens/image_to_pdf_screen.dart';
+import 'package:love_pdf/presentation/screens/merge_pdf_screen.dart';
 import 'package:love_pdf/presentation/screens/pdf_preview_screen.dart'; // අලුතින් දැම්මා
 
 class HomeScreen extends StatelessWidget {
@@ -57,7 +58,12 @@ class HomeScreen extends StatelessWidget {
               children: [
                 _buildToolCard(
                   context, "Merge PDF", Icons.merge_type, Colors.blue, 
-                  () { /* TODO: Merge PDF */ }
+                  () { 
+                    Navigator.push(
+                      context, 
+                      MaterialPageRoute(builder: (context) => const MergePdfScreen())
+                    );
+                  }
                 ),
                 _buildToolCard(
                   context, "Split PDF", Icons.call_split, Colors.orange, 
