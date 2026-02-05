@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:love_pdf/presentation/screens/pdf_preview_screen.dart'; // හරියටම import කරගන්න
+import 'package:love_pdf/presentation/screens/pdf_preview_screen.dart'; 
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -18,6 +18,7 @@ class _ImageToPdfScreenState extends State<ImageToPdfScreen> {
   bool _isGenerating = false;
 
   // 1. පින්තූර තෝරාගැනීමේ Function එක
+  // (මෙතන addAll නිසා තියෙන ලිස්ට් එකට අලුත් ඒවා එකතු වෙනවා)
   Future<void> _pickImages() async {
     final List<XFile> images = await _picker.pickMultiImage();
     if (images.isNotEmpty) {
@@ -27,7 +28,7 @@ class _ImageToPdfScreenState extends State<ImageToPdfScreen> {
     }
   }
 
-  // 2. PDF එක හදන Function එක (UPDATED: Fixed Aspect Ratio + Zero Margins)
+  // 2. PDF එක හදන Function එක (Quality & Ratio Fixed)
   Future<void> _createPdf() async {
     if (_selectedImages.isEmpty) return;
 
@@ -37,47 +38,38 @@ class _ImageToPdfScreenState extends State<ImageToPdfScreen> {
 
     try {
       final PdfDocument document = PdfDocument();
-
-      // ** විශේෂ වෙනස්කම 1: පිටුවේ වටේ තියෙන Default Margins (හිස් ඉඩ) අයින් කිරීම **
-      document.pageSettings.margins.all = 0;
+      document.pageSettings.margins.all = 0; // Margins අයින් කරනවා
 
       for (var imageFile in _selectedImages) {
-        // PDF පිටුවක් හදාගන්නවා (Default A4 Portrait)
         final PdfPage page = document.pages.add();
-        
         final List<int> imageBytes = await imageFile.readAsBytes();
         final PdfBitmap bitmap = PdfBitmap(imageBytes);
 
-        // --- ASPECT RATIO FIX & CENTERING ---
-        
-        // A. පිටුවේ සහ පින්තූරයේ ප්‍රමාණයන් ගන්නවා
+        // --- ASPECT RATIO FIX ---
         final double pageWidth = page.getClientSize().width;
         final double pageHeight = page.getClientSize().height;
         final double imgWidth = bitmap.width.toDouble();
         final double imgHeight = bitmap.height.toDouble();
 
-        // B. පින්තූරය පිටුවට හරියන්න කුඩා/විශාල කළ යුතු ප්‍රමාණය (Scale) ගණනය කිරීම
-        // (පළල සහ උස යන දෙකෙන් පිටුවට වඩාත්ම තද වෙන පැත්ත තෝරාගන්නවා. එවිට පින්තූරය පිටුවෙන් එළියට පනින්නේ නෑ.)
+        // Scale Factor
         double scaleFactor = (pageWidth / imgWidth) < (pageHeight / imgHeight)
             ? (pageWidth / imgWidth)
             : (pageHeight / imgHeight);
 
-        // C. අලුත් පළල සහ උස
         double newWidth = imgWidth * scaleFactor;
         double newHeight = imgHeight * scaleFactor;
 
-        // D. මැදට ගන්න ඕනේ දුර (Centering Logic)
+        // Centering
         double xOffset = (pageWidth - newWidth) / 2;
         double yOffset = (pageHeight - newHeight) / 2;
 
-        // E. දැන් හරිම ප්‍රමාණයට, හරිම තැන පින්තූරය අඳිනවා
         page.graphics.drawImage(
           bitmap,
           Rect.fromLTWH(xOffset, yOffset, newWidth, newHeight),
         );
       }
 
-      // App එකේ තාවකාලික storage එකට save කරනවා
+      // Save Logic
       final Directory directory = await getApplicationDocumentsDirectory();
       final String fileName = 'LovePDF_${DateTime.now().millisecondsSinceEpoch}.pdf';
       final String path = '${directory.path}/$fileName';
@@ -86,11 +78,10 @@ class _ImageToPdfScreenState extends State<ImageToPdfScreen> {
       await file.writeAsBytes(await document.save());
       document.dispose();
 
-      // PDF එක හැදුන ගමන් Preview Screen එකට Navigate කරනවා
       if (mounted) {
         setState(() {
           _isGenerating = false;
-          _selectedImages.clear(); // වැඩේ ඉවර නිසා ලිස්ට් එක clear කරනවා
+          _selectedImages.clear(); 
         });
 
         Navigator.push(
@@ -122,21 +113,30 @@ class _ImageToPdfScreenState extends State<ImageToPdfScreen> {
       appBar: AppBar(
         title: const Text("Image to PDF"),
         actions: [
-          // Clear Button
+          // --- 1. Add Button (අලුත් පින්තූර එකතු කරන්න) ---
+          IconButton(
+            tooltip: "Add more images",
+            icon: const Icon(Icons.add_circle_outline, size: 28, color: Colors.blue),
+            onPressed: _pickImages,
+          ),
+
+          // --- 2. Clear All Button ---
           if (_selectedImages.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.delete_outline),
+              tooltip: "Clear all",
+              icon: const Icon(Icons.delete_sweep, color: Colors.redAccent),
               onPressed: () {
                 setState(() {
                   _selectedImages.clear();
                 });
               },
-            )
+            ),
+          const SizedBox(width: 10),
         ],
       ),
       body: Column(
         children: [
-          // --- Image List Area ---
+          // --- Image List Area (Reorderable) ---
           Expanded(
             child: _selectedImages.isEmpty
                 ? Center(
@@ -154,27 +154,49 @@ class _ImageToPdfScreenState extends State<ImageToPdfScreen> {
                       ],
                     ),
                   )
-                : ListView.builder(
+                : ReorderableListView.builder(
                     padding: const EdgeInsets.all(10),
                     itemCount: _selectedImages.length,
+                    // --- Drag & Drop Logic ---
+                    onReorder: (oldIndex, newIndex) {
+                      setState(() {
+                        if (newIndex > oldIndex) newIndex -= 1;
+                        final item = _selectedImages.removeAt(oldIndex);
+                        _selectedImages.insert(newIndex, item);
+                      });
+                    },
                     itemBuilder: (context, index) {
+                      final image = _selectedImages[index]; // Note: _selectedFiles කියල වැරදීමකින් තිබ්බොත් _selectedImages කියල හදාගන්න. මෙතන _selectedImages තියෙන්න ඕනේ.
+                      // Corrected variable usage below:
                       return Card(
-                        margin: const EdgeInsets.only(bottom: 10),
+                        key: ValueKey(_selectedImages[index].path), // Unique Key එකක් ඕනේ Drag කරන්න
+                        margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
-                          leading: Image.file(
-                            File(_selectedImages[index].path),
-                            width: 50,
-                            height: 50,
-                            fit: BoxFit.cover,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(5),
+                            child: Image.file(
+                              File(_selectedImages[index].path),
+                              width: 50,
+                              height: 50,
+                              fit: BoxFit.cover,
+                            ),
                           ),
-                          title: Text("Image ${index + 1}"),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.close, color: Colors.red),
-                            onPressed: () {
-                              setState(() {
-                                _selectedImages.removeAt(index);
-                              });
-                            },
+                          title: Text("Page ${index + 1}"),
+                          // Drag Handle එක (Optional - නැතත් වැඩ කරනවා)
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.close, color: Colors.red),
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedImages.removeAt(index);
+                                  });
+                                },
+                              ),
+                              const Icon(Icons.drag_handle, color: Colors.grey),
+                            ],
                           ),
                         ),
                       );
