@@ -35,6 +35,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   share_plus: ^12.0.1
+  pdfx: ^2.9.2
   
   
   # PDF වැඩ වලට (Core Logic)

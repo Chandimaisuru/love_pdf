@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart'; // අලුතින් දැම්මා
 import 'package:love_pdf/presentation/screens/image_to_pdf_screen.dart';
 import 'package:love_pdf/presentation/screens/merge_pdf_screen.dart';
-import 'package:love_pdf/presentation/screens/pdf_preview_screen.dart'; // අලුතින් දැම්මා
+import 'package:love_pdf/presentation/screens/pdf_preview_screen.dart';
+import 'package:love_pdf/presentation/screens/split_options_sheet.dart';
+import 'package:love_pdf/presentation/screens/visual_split_screen.dart'; // අලුතින් දැම්මා
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -29,6 +31,50 @@ class HomeScreen extends StatelessWidget {
       );
     }
   }
+// --- New Logic: Pick and Split PDF ---
+  Future<void> _pickAndSplitPdf(BuildContext context) async {
+  // 1. File එක තෝරනවා
+  FilePickerResult? result = await FilePicker.platform.pickFiles(
+    type: FileType.custom,
+    allowedExtensions: ['pdf'],
+  );
+
+  if (result != null && result.files.single.path != null) {
+    String path = result.files.single.path!;
+
+    // 2. Bottom Sheet එක පෙන්වනවා
+    if (context.mounted) {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (context) => SplitOptionsSheet(
+          // Option A: Extract
+          onExtract: () {
+            Navigator.pop(context); // Sheet එක වහනවා
+            Navigator.push(context, MaterialPageRoute(
+              builder: (_) => VisualSplitScreen(filePath: path, mode: SplitMode.keep)
+            ));
+          },
+          // Option B: Delete
+          onDelete: () {
+            Navigator.pop(context);
+            Navigator.push(context, MaterialPageRoute(
+              builder: (_) => VisualSplitScreen(filePath: path, mode: SplitMode.remove)
+            ));
+          },
+          // Option C: Range (මේක අපි ඊළඟට කතා කරමු, දැනට TODO)
+          onRange: () {
+            Navigator.pop(context);
+            // _showRangeSplitDialog(context, path); // අපි ඊළඟට මේක හදමු
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Range Split Coming Soon!")));
+          },
+        ),
+      );
+    }
+  }
+}
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -65,10 +111,10 @@ class HomeScreen extends StatelessWidget {
                     );
                   }
                 ),
-                _buildToolCard(
-                  context, "Split PDF", Icons.call_split, Colors.orange, 
-                  () { /* TODO: Split PDF */ }
-                ),
+              _buildToolCard(
+                context, "Split PDF", Icons.call_split, Colors.orange, 
+                () { _pickAndSplitPdf(context); } // Function call
+              ),
                 _buildToolCard(
                   context, "Edit PDF", Icons.edit_note, Colors.green, 
                   () { /* TODO: Edit PDF */ }
