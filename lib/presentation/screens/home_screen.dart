@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart'; // අලුතින් දැම්මා
+import 'package:love_pdf/presentation/screens/edit_pdf_screen.dart';
 import 'package:love_pdf/presentation/screens/image_to_pdf_screen.dart';
 import 'package:love_pdf/presentation/screens/merge_pdf_screen.dart';
 import 'package:love_pdf/presentation/screens/pdf_preview_screen.dart';
@@ -115,10 +116,12 @@ class HomeScreen extends StatelessWidget {
                 context, "Split PDF", Icons.call_split, Colors.orange, 
                 () { _pickAndSplitPdf(context); } // Function call
               ),
-                _buildToolCard(
-                  context, "Edit PDF", Icons.edit_note, Colors.green, 
-                  () { /* TODO: Edit PDF */ }
-                ),
+              _buildToolCard(
+                context, "Edit PDF", Icons.edit_note, Colors.green, 
+                () { 
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const EditPdfScreen()));
+                }
+              ),
                 // --- Updated View PDF Card ---
                 _buildToolCard(
                   context, "View PDF", Icons.picture_as_pdf, Colors.redAccent, 
