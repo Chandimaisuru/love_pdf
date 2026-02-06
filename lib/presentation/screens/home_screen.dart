@@ -5,6 +5,7 @@ import 'package:love_pdf/presentation/screens/image_to_pdf_screen.dart';
 import 'package:love_pdf/presentation/screens/merge_pdf_screen.dart';
 import 'package:love_pdf/presentation/screens/pdf_preview_screen.dart';
 import 'package:love_pdf/presentation/screens/split_options_sheet.dart';
+import 'package:love_pdf/presentation/screens/text_to_pdf_screen.dart';
 import 'package:love_pdf/presentation/screens/visual_split_screen.dart'; // අලුතින් දැම්මා
 
 class HomeScreen extends StatelessWidget {
@@ -153,10 +154,12 @@ class HomeScreen extends StatelessWidget {
                     );
                   }
                 ),
-                _buildToolCard(
-                  context, "Text to PDF", Icons.text_fields, Colors.teal, 
-                  () { /* TODO: Text to PDF */ }
-                ),
+              _buildToolCard(
+                context, "Text to PDF", Icons.text_fields, Colors.teal, 
+                () { 
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const TextToPdfScreen()));
+                }
+              ),
                 _buildToolCard(
                   context, "PDF to Image", Icons.collections, Colors.indigo, 
                   () { /* TODO: PDF to Image */ }
