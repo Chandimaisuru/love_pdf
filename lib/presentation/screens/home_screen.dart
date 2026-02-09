@@ -1,5 +1,8 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart'; // Latest Version
 import 'package:love_pdf/presentation/screens/edit_pdf_screen.dart';
 import 'package:love_pdf/presentation/screens/image_to_pdf_screen.dart';
 import 'package:love_pdf/presentation/screens/merge_pdf_screen.dart';
@@ -10,8 +13,63 @@ import 'package:love_pdf/presentation/screens/split_options_sheet.dart';
 import 'package:love_pdf/presentation/screens/text_to_pdf_screen.dart';
 import 'package:love_pdf/presentation/screens/visual_split_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  StreamSubscription? _intentDataStreamSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupInteractedMessage();
+  }
+
+  @override
+  void dispose() {
+    _intentDataStreamSubscription?.cancel();
+    super.dispose();
+  }
+
+  // --- LATEST VERSION LOGIC (Java 17 Compatible) ---
+  void _setupInteractedMessage() {
+    // 1. Background (With .instance)
+    _intentDataStreamSubscription = ReceiveSharingIntent.instance.getMediaStream().listen((List<SharedMediaFile> value) {
+      if (value.isNotEmpty) {
+        _openSharedFile(value.first.path);
+      }
+    }, onError: (err) {
+      debugPrint("getMediaStream error: $err");
+    });
+
+    // 2. Closed State (With .instance)
+    ReceiveSharingIntent.instance.getInitialMedia().then((List<SharedMediaFile> value) {
+      if (value.isNotEmpty) {
+        _openSharedFile(value.first.path);
+        ReceiveSharingIntent.instance.reset(); // Memory clear
+      }
+    });
+  }
+
+  void _openSharedFile(String path) {
+    if (path.toLowerCase().endsWith('.pdf')) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          String fileName = path.split('/').last;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PdfPreviewScreen(filePath: path, fileName: fileName),
+            ),
+          );
+        }
+      });
+    }
+  }
 
   // --- Logic: Pick and Open PDF ---
   Future<void> _pickAndOpenPdf(BuildContext context) async {
@@ -72,26 +130,39 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true, 
-      appBar: AppBar(
-        title: const Text(
-          'Love PDF Tools',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+appBar: AppBar(
+  centerTitle: true,
+  backgroundColor: Colors.transparent, // පසුබිම (කළු Gradient එක තියෙන්න ඕනේ Click එක පේන්න)
+  elevation: 0,
+  
+  title: const Text.rich(
+    TextSpan(
+      style: TextStyle(
+        fontSize: 24, // අකුරු වල සයිස් එක
+        fontWeight: FontWeight.bold,
       ),
+      children: [
+        // 1. "Click " කොටස (සුදු පාටින්)
+        TextSpan(
+          text: 'Click ',
+          style: TextStyle(color: Colors.white,fontSize: 15 ),
+        ),
+        
+        // 2. "PDF" කොටස (ලෝගෝ එකේ තියෙන රතු පාටින්)
+        TextSpan(
+          text: 'PDF',
+          style: TextStyle(color: Color(0xFFD32F2F)), // තද රතු පාටක්
+        ),
+      ],
+    ),
+  ),
+),
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        color:        Color(0xFF232526), // Fallback color
-        // --- 1. BLACK GRADIENT BACKGROUND ---
-  
+        color: const Color(0xFF232526), 
         child: SafeArea(
           child: SingleChildScrollView(
-            // --- 2. SIZE REDUCTION TRICK ---
-            // horizontal padding එක 40ක් කළා (කලින් 20යි). 
-            // මේකෙන් වෙන්නේ මැද තියෙන ඉඩ අඩු වෙලා බොක්ස් ටික ඉබේම පොඩි වෙන එකයි.
             padding: const EdgeInsets.symmetric(horizontal: 34.0, vertical: 20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,18 +172,16 @@ class HomeScreen extends StatelessWidget {
                 GridView.count(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2, // පේළියට බොක්ස් 2යි
+                  crossAxisCount: 2, 
                   crossAxisSpacing: 15,
                   mainAxisSpacing: 15,
-                  childAspectRatio: 1.1, // බොක්ස් එක ටිකක් කොට (Flat) කළා ලස්සනට පේන්න
+                  childAspectRatio: 1.1, 
                   children: [
-
-                     _buildToolCard(
+                    _buildToolCard(
                       context, "View PDF", Icons.picture_as_pdf, Colors.redAccent, 
                       () => _pickAndOpenPdf(context)
                     ),
-
-                      _buildToolCard(
+                    _buildToolCard(
                       context, "Edit PDF", Icons.edit_note, Colors.green, 
                       () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditPdfScreen()))
                     ),
@@ -124,20 +193,15 @@ class HomeScreen extends StatelessWidget {
                       context, "Split PDF", Icons.call_split, Colors.orange, 
                       () => _pickAndSplitPdf(context)
                     ),
-
-                    // Original Icon & Name kept
-
                   ],
                 ),
-
                 const SizedBox(height: 30),
-
                 _buildSectionHeader("Converters"),
                 const SizedBox(height: 15),
                 GridView.count(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2, // පේළියට බොක්ස් 2යි
+                  crossAxisCount: 2, 
                   crossAxisSpacing: 15,
                   mainAxisSpacing: 15,
                   childAspectRatio: 1.1,
@@ -146,7 +210,7 @@ class HomeScreen extends StatelessWidget {
                       context, "Image to PDF", Icons.picture_as_pdf_rounded, Colors.purple, 
                       () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ImageToPdfScreen()))
                     ),
-                                        _buildToolCard(
+                    _buildToolCard(
                       context, "PDF to Image", Icons.collections, Colors.indigo, 
                       () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PdfToImageScreen()))
                     ),
@@ -154,14 +218,12 @@ class HomeScreen extends StatelessWidget {
                       context, "Text to PDF", Icons.text_fields, Colors.teal, 
                       () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TextToPdfScreen()))
                     ),
-
                     _buildToolCard(
                       context, "PDF to Text", Icons.article, Colors.orange, 
                       () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PdfToTextScreen()))
                     ),
                   ],
                 ),
-                
                 const SizedBox(height: 40),
               ],
             ),
@@ -171,30 +233,27 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // --- WHITE HEADER TEXT ---
   Widget _buildSectionHeader(String title) {
     return Text(
       title,
       style: const TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.bold,
-        color: Colors.white, // සුදු පාට
+        color: Colors.white, 
         letterSpacing: 0.5,
       ),
     );
   }
 
-  // --- GLASSMORPHISM CARD (BLACK THEME) ---
   Widget _buildToolCard(BuildContext context, String title, IconData icon, Color color, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
-          // Glass Effect: White with 10% opacity
           color: Colors.white.withOpacity(0.1), 
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.2), width: 1), // තුනී සුදු ඉරක්
+          border: Border.all(color: Colors.white.withOpacity(0.2), width: 1), 
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.3),
@@ -209,10 +268,10 @@ class HomeScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.2), // Icon Background Glow
+                color: color.withOpacity(0.2), 
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: color, size: 30), // Original Size
+              child: Icon(icon, color: color, size: 30), 
             ),
             const SizedBox(height: 12),
             Text(
@@ -220,7 +279,7 @@ class HomeScreen extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: Colors.white, // Text White
+                color: Colors.white, 
               ),
             ),
           ],
