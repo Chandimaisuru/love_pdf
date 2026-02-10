@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:love_pdf/presentation/screens/pdf_preview_screen.dart'; 
+import 'package:love_pdf/presentation/screens/pdf_preview_screen.dart';
 
 class MergePdfScreen extends StatefulWidget {
   const MergePdfScreen({super.key});
@@ -13,17 +13,16 @@ class MergePdfScreen extends StatefulWidget {
 }
 
 class _MergePdfScreenState extends State<MergePdfScreen> {
-  List<PlatformFile> _selectedFiles = []; 
+  List<PlatformFile> _selectedFiles = [];
   bool _isMerging = false;
 
-  // 1. PDF ෆයිල්ස් තෝරාගැනීම 
-  // (මෙතන addAll පාවිච්චි කරන නිසා තියෙන ලිස්ට් එකට අලුත් ඒවා එකතු වෙනවා)
+  // 1. PDF ෆයිල්ස් තෝරාගැනීම
   Future<void> _pickFiles() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf'],
-        allowMultiple: true, 
+        allowMultiple: true,
       );
 
       if (result != null) {
@@ -38,8 +37,7 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
     }
   }
 
-  // 2. Merge Logic (Template Fix සමඟ)
-// 2. Merge Logic (Fixed: Margins Issue)
+  // 2. Merge Logic
   Future<void> _mergePdfs() async {
     if (_selectedFiles.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -54,10 +52,6 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
 
     try {
       final PdfDocument outputDocument = PdfDocument();
-
-      // --- විශේෂ වෙනස්කම මෙතන ---
-      // අලුත් PDF එකේ වටේ හිස් ඉඩ (Default Margins) සම්පූර්ණයෙන්ම අයින් කරනවා.
-      // නැත්නම් පිටු එකතු කරද්දී ඒවා දකුණට පැනලා (Shift වෙලා) පේන්නේ මේ නිසයි.
       outputDocument.pageSettings.margins.all = 0;
 
       for (var file in _selectedFiles) {
@@ -66,24 +60,16 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
         final PdfDocument inputDocument = PdfDocument(inputBytes: inputBytes);
 
         for (int i = 0; i < inputDocument.pages.count; i++) {
-          // මුල් පිටුවේ ප්‍රමාණය ගන්නවා
           Size pageSize = inputDocument.pages[i].getClientSize();
-          
-          // Template එකක් හදාගන්නවා
           PdfTemplate template = inputDocument.pages[i].createTemplate();
 
-          // අලුත් පිටුව හදන්න කලින්, මුල් පිටුවේ ප්‍රමාණයටම Settings හදාගන්නවා
           outputDocument.pageSettings.size = pageSize;
-          outputDocument.pageSettings.orientation = 
+          outputDocument.pageSettings.orientation =
               pageSize.width > pageSize.height ? PdfPageOrientation.landscape : PdfPageOrientation.portrait;
-          
-          // දැන් පිටුව add කරනවා (Margins 0 නිසා හරියටම මුල ඉඳන් පටන් ගනී)
+
           PdfPage newPage = outputDocument.pages.add();
-          
-          // හරියටම 0,0 තැනින් අඳිනවා
           newPage.graphics.drawPdfTemplate(template, const Offset(0, 0));
         }
-
         inputDocument.dispose();
       }
 
@@ -105,17 +91,14 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => PdfPreviewScreen(
-              filePath: path, 
-              fileName: fileName
+              filePath: path,
+              fileName: fileName,
             ),
           ),
         );
       }
-
     } catch (e) {
-      setState(() {
-        _isMerging = false;
-      });
+      setState(() => _isMerging = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error merging files: $e')),
@@ -127,112 +110,203 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text("Merge PDFs"),
+        title: const Text("Merge PDFs", style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
         actions: [
-          // --- 1. Add Button (අලුතින් දැමූ කොටස) ---
-          IconButton(
-            tooltip: "Add more PDFs",
-            icon: const Icon(Icons.add_circle_outline, size: 28, color: Colors.blue),
-            onPressed: _pickFiles, // මෙය click කළාම තවත් ෆයිල් තෝරන්න පුළුවන්
-          ),
-          
-          // --- 2. Delete All Button ---
-          if (_selectedFiles.isNotEmpty)
+          // Add Button (Header - Only show if files are selected)
+          if (_selectedFiles.isNotEmpty) ...[
+            IconButton(
+              tooltip: "Add more PDFs",
+              icon: const Icon(Icons.add_circle_outline, size: 28, color: Colors.blueAccent),
+              onPressed: _pickFiles,
+            ),
             IconButton(
               tooltip: "Clear all",
-              icon: const Icon(Icons.delete_sweep, color: Colors.redAccent),
+              icon: const Icon(Icons.delete_sweep_outlined, color: Colors.redAccent),
               onPressed: () {
-                setState(() {
-                  _selectedFiles.clear();
-                });
+                setState(() => _selectedFiles.clear());
               },
             ),
-          
-          const SizedBox(width: 10), // පොඩි ඉඩක්
+            const SizedBox(width: 10),
+          ]
         ],
       ),
-      body: Column(
-        children: [
-          // --- File List Area ---
-          Expanded(
-            child: _selectedFiles.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.merge_type, size: 80, color: Colors.grey[300]),
-                        const SizedBox(height: 10),
-                        const Text("Select 2 or more PDFs to merge"),
-                        const SizedBox(height: 20),
-                        ElevatedButton.icon(
-                          onPressed: _pickFiles,
-                          icon: const Icon(Icons.add),
-                          label: const Text("Add PDFs"),
-                        )
-                      ],
-                    ),
-                  )
-                : ReorderableListView.builder(
-                    padding: const EdgeInsets.all(10),
-                    itemCount: _selectedFiles.length,
-                    onReorder: (oldIndex, newIndex) {
-                      setState(() {
-                        if (newIndex > oldIndex) newIndex -= 1;
-                        final item = _selectedFiles.removeAt(oldIndex);
-                        _selectedFiles.insert(newIndex, item);
-                      });
-                    },
-                    itemBuilder: (context, index) {
-                      final file = _selectedFiles[index];
-                      return Card(
-                        key: ValueKey(file.path), 
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
-                          title: Text(file.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                          subtitle: Text("${(file.size / 1024).toStringAsFixed(1)} KB"),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () {
-                              setState(() {
-                                _selectedFiles.removeAt(index);
-                              });
-                            },
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+      body: Container(
+        // Dark Gradient Background
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // --- Main Content Area ---
+              Expanded(
+                child: _selectedFiles.isEmpty
+                    // Landing Page Design
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(35),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.05),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.blueAccent.withOpacity(0.2),
+                                    blurRadius: 20,
+                                    spreadRadius: 5,
+                                  )
+                                ]
+                              ),
+                              child: const Icon(Icons.merge_type, size: 80, color: Colors.blueAccent),
+                            ),
+                            const SizedBox(height: 40),
+                            const Text(
+                              "Merge PDFs",
+                              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                            const SizedBox(height: 15),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 40),
+                              child: Text(
+                                "Combine multiple PDF files into a single document quickly and easily.",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 16, color: Colors.white70, height: 1.5),
+                              ),
+                            ),
+                            const SizedBox(height: 60),
+                            SizedBox(
+                              width: 250,
+                              height: 55,
+                              child: ElevatedButton.icon(
+                                onPressed: _pickFiles,
+                                icon: const Icon(Icons.add),
+                                label: const Text("Select PDF Files"),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blueAccent,
+                                  foregroundColor: Colors.white,
+                                  elevation: 8,
+                                  textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                ),
+                              ),
+                            )
+                          ],
+                        ),
+                      )
+                    // List View
+                    : ReorderableListView.builder(
+                        padding: const EdgeInsets.all(15),
+                        itemCount: _selectedFiles.length,
+                        onReorder: (oldIndex, newIndex) {
+                          setState(() {
+                            if (newIndex > oldIndex) newIndex -= 1;
+                            final item = _selectedFiles.removeAt(oldIndex);
+                            _selectedFiles.insert(newIndex, item);
+                          });
+                        },
+                        itemBuilder: (context, index) {
+                          final file = _selectedFiles[index];
+                          return Container(
+                            key: ValueKey(file.path),
+                            margin: const EdgeInsets.only(bottom: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white.withOpacity(0.1)),
+                            ),
+                            child: ListTile(
+                              leading: const Icon(Icons.picture_as_pdf, color: Colors.redAccent, size: 30),
+                              title: Text(
+                                file.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                              ),
+                              subtitle: Text(
+                                "${(file.size / 1024).toStringAsFixed(1)} KB",
+                                style: TextStyle(color: Colors.white.withOpacity(0.6)),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.drag_handle, color: Colors.white.withOpacity(0.3)),
+                                  const SizedBox(width: 10),
+                                  IconButton(
+                                    icon: const Icon(Icons.close, color: Colors.white70),
+                                    onPressed: () {
+                                      setState(() => _selectedFiles.removeAt(index));
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
 
-          // --- Bottom Action Button ---
-          if (_selectedFiles.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(color: Colors.black12, blurRadius: 10, offset: const Offset(0, -5))
-                ],
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
+              // --- Bottom Action Button ---
+              // Files එකක් හරි තිබ්බොත් මේක පෙන්වනවා
+              if (_selectedFiles.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F2027).withOpacity(0.95),
+                    border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, -5))
+                    ],
                   ),
-                  onPressed: (_isMerging || _selectedFiles.length < 2) ? null : _mergePdfs,
-                  icon: _isMerging 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.merge),
-                  label: Text(_isMerging ? "Merging..." : "Merge Files"),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        foregroundColor: Colors.white,
+                        
+                        // 👇 මෙන්න ඔයා ඉල්ලපු Fix එක (Disabled වුනාම පේන පාට) 👇
+                        disabledBackgroundColor: Colors.white.withOpacity(0.12), 
+                        disabledForegroundColor: Colors.white.withOpacity(0.3), 
+                        
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        elevation: 5,
+                      ),
+                      // ෆයිල් 2කට වඩා අඩු නම් Button එක Click කරන්න බෑ (null)
+                      onPressed: (_isMerging || _selectedFiles.length < 2) ? null : _mergePdfs,
+                      
+                      icon: _isMerging
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Icon(Icons.merge),
+                      
+                      // Text එක වෙනස් වෙනවා ෆයිල් ගාණ අනුව
+                      label: Text(
+                        _isMerging 
+                            ? "Merging..." 
+                            : _selectedFiles.length < 2 
+                                ? "Select at least 2 files" // 1ක් තිබ්බොත් මේක වැටෙන්නේ
+                                : "Merge ${_selectedFiles.length} Files",
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }

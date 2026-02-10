@@ -18,7 +18,6 @@ class _ImageToPdfScreenState extends State<ImageToPdfScreen> {
   bool _isGenerating = false;
 
   // 1. පින්තූර තෝරාගැනීමේ Function එක
-  // (මෙතන addAll නිසා තියෙන ලිස්ට් එකට අලුත් ඒවා එකතු වෙනවා)
   Future<void> _pickImages() async {
     final List<XFile> images = await _picker.pickMultiImage();
     if (images.isNotEmpty) {
@@ -110,120 +109,219 @@ class _ImageToPdfScreenState extends State<ImageToPdfScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true, // Gradient එක උඩටම යවන්න
       appBar: AppBar(
-        title: const Text("Image to PDF"),
+        title: const Text("Image to PDF", style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent, // Transparent AppBar
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
         actions: [
-          // --- 1. Add Button (අලුත් පින්තූර එකතු කරන්න) ---
-          IconButton(
-            tooltip: "Add more images",
-            icon: const Icon(Icons.add_circle_outline, size: 28, color: Colors.blue),
-            onPressed: _pickImages,
-          ),
-
-          // --- 2. Clear All Button ---
-          if (_selectedImages.isNotEmpty)
+          // --- Add & Clear Buttons (Only show if images exist) ---
+          if (_selectedImages.isNotEmpty) ...[
+            IconButton(
+              tooltip: "Add more images",
+              icon: const Icon(Icons.add_photo_alternate_outlined, size: 28, color: Colors.purpleAccent),
+              onPressed: _pickImages,
+            ),
             IconButton(
               tooltip: "Clear all",
-              icon: const Icon(Icons.delete_sweep, color: Colors.redAccent),
+              icon: const Icon(Icons.delete_sweep_outlined, color: Colors.redAccent),
               onPressed: () {
                 setState(() {
                   _selectedImages.clear();
                 });
               },
             ),
-          const SizedBox(width: 10),
+            const SizedBox(width: 10),
+          ]
         ],
       ),
-      body: Column(
-        children: [
-          // --- Image List Area (Reorderable) ---
-          Expanded(
-            child: _selectedImages.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.image_search, size: 80, color: Colors.grey[300]),
-                        const SizedBox(height: 10),
-                        const Text("No images selected"),
-                        TextButton.icon(
-                          onPressed: _pickImages,
-                          icon: const Icon(Icons.add_photo_alternate),
-                          label: const Text("Select Images"),
-                        )
-                      ],
-                    ),
-                  )
-                : ReorderableListView.builder(
-                    padding: const EdgeInsets.all(10),
-                    itemCount: _selectedImages.length,
-                    // --- Drag & Drop Logic ---
-                    onReorder: (oldIndex, newIndex) {
-                      setState(() {
-                        if (newIndex > oldIndex) newIndex -= 1;
-                        final item = _selectedImages.removeAt(oldIndex);
-                        _selectedImages.insert(newIndex, item);
-                      });
-                    },
-                    itemBuilder: (context, index) {
-                      final image = _selectedImages[index]; // Note: _selectedFiles කියල වැරදීමකින් තිබ්බොත් _selectedImages කියල හදාගන්න. මෙතන _selectedImages තියෙන්න ඕනේ.
-                      // Corrected variable usage below:
-                      return Card(
-                        key: ValueKey(_selectedImages[index].path), // Unique Key එකක් ඕනේ Drag කරන්න
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          leading: ClipRRect(
-                            borderRadius: BorderRadius.circular(5),
-                            child: Image.file(
-                              File(_selectedImages[index].path),
-                              width: 50,
-                              height: 50,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          title: Text("Page ${index + 1}"),
-                          // Drag Handle එක (Optional - නැතත් වැඩ කරනවා)
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.close, color: Colors.red),
-                                onPressed: () {
-                                  setState(() {
-                                    _selectedImages.removeAt(index);
-                                  });
-                                },
+      body: Container(
+        // Dark Theme Gradient
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // --- Main Content Area ---
+              Expanded(
+                child: _selectedImages.isEmpty
+                    // 👇👇👇 NEW LANDING PAGE (Consistent Style) 👇👇👇
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // 1. Icon Container with Glow
+                            Container(
+                              padding: const EdgeInsets.all(35),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.05), // Glass Effect
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.purpleAccent.withOpacity(0.2), // Purple Glow
+                                    blurRadius: 20,
+                                    spreadRadius: 5,
+                                  )
+                                ]
                               ),
-                              const Icon(Icons.drag_handle, color: Colors.grey),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
+                              child: const Icon(Icons.image_search, size: 80, color: Colors.purpleAccent),
+                            ),
+                            const SizedBox(height: 40),
+                            
+                            // 2. Title Text
+                            const Text(
+                              "Image to PDF",
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+                            
+                            // 3. Description Text
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 40),
+                              child: Text(
+                                "Convert your photos into a single PDF document instantly.",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white70,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 60),
 
-          // --- Bottom Action Button ---
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: (_selectedImages.isEmpty || _isGenerating) ? null : _createPdf,
-                icon: _isGenerating 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-                    : const Icon(Icons.picture_as_pdf),
-                label: Text(_isGenerating ? "Generating PDF..." : "Convert to PDF"),
+                            // 4. Large Action Button
+                            SizedBox(
+                              width: 250,
+                              height: 55,
+                              child: ElevatedButton.icon(
+                                onPressed: _pickImages,
+                                icon: const Icon(Icons.add_photo_alternate),
+                                label: const Text("Select Images"),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.purpleAccent, // Purple Button
+                                  foregroundColor: Colors.white,
+                                  elevation: 8,
+                                  textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                ),
+                              ),
+                            )
+                          ],
+                        ),
+                      )
+                    
+                    // 👇👇👇 LIST VIEW (Glass Effect) 👇👇👇
+                    : ReorderableListView.builder(
+                        padding: const EdgeInsets.all(15),
+                        itemCount: _selectedImages.length,
+                        onReorder: (oldIndex, newIndex) {
+                          setState(() {
+                            if (newIndex > oldIndex) newIndex -= 1;
+                            final item = _selectedImages.removeAt(oldIndex);
+                            _selectedImages.insert(newIndex, item);
+                          });
+                        },
+                        itemBuilder: (context, index) {
+                          final image = _selectedImages[index];
+                          return Container(
+                            key: ValueKey(image.path), // Unique Key for dragging
+                            margin: const EdgeInsets.only(bottom: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08), // Glass Effect
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white.withOpacity(0.1)),
+                            ),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              // Thumbnail Image
+                              leading: Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.white24),
+                                  borderRadius: BorderRadius.circular(6)
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(5),
+                                  child: Image.file(
+                                    File(image.path),
+                                    width: 50,
+                                    height: 50,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                              // Title
+                              title: Text(
+                                "Page ${index + 1}",
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                              ),
+                              // Actions (Delete & Drag Handle)
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.close, color: Colors.white70),
+                                    onPressed: () {
+                                      setState(() {
+                                        _selectedImages.removeAt(index);
+                                      });
+                                    },
+                                  ),
+                                  Icon(Icons.drag_handle, color: Colors.white.withOpacity(0.3)),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
               ),
-            ),
+
+              // 👇👇👇 BOTTOM ACTION BUTTON (Fixed at bottom) 👇👇👇
+              if (_selectedImages.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F2027).withOpacity(0.95), // Dark Bottom Bar
+                    border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purpleAccent, // Purple for Convert
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        elevation: 5,
+                      ),
+                      onPressed: (_isGenerating) ? null : _createPdf,
+                      icon: _isGenerating 
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+                        : const Icon(Icons.picture_as_pdf),
+                      label: Text(
+                        _isGenerating ? "Generating..." : "Convert to PDF",
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -1,8 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:receive_sharing_intent/receive_sharing_intent.dart'; // Latest Version
+import 'package:love_pdf/presentation/screens/split_pdf_screen.dart';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+
 import 'package:love_pdf/presentation/screens/edit_pdf_screen.dart';
 import 'package:love_pdf/presentation/screens/image_to_pdf_screen.dart';
 import 'package:love_pdf/presentation/screens/merge_pdf_screen.dart';
@@ -35,35 +36,36 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  // --- LATEST VERSION LOGIC (Java 17 Compatible) ---
+  // ---------- SHARE INTENT ----------
   void _setupInteractedMessage() {
-    // 1. Background (With .instance)
-    _intentDataStreamSubscription = ReceiveSharingIntent.instance.getMediaStream().listen((List<SharedMediaFile> value) {
-      if (value.isNotEmpty) {
-        _openSharedFile(value.first.path);
-      }
-    }, onError: (err) {
-      debugPrint("getMediaStream error: $err");
-    });
+    _intentDataStreamSubscription =
+        ReceiveSharingIntent.instance.getMediaStream().listen(
+      (value) {
+        if (value.isNotEmpty) {
+          _openSharedFile(value.first.path);
+        }
+      },
+    );
 
-    // 2. Closed State (With .instance)
-    ReceiveSharingIntent.instance.getInitialMedia().then((List<SharedMediaFile> value) {
+    ReceiveSharingIntent.instance.getInitialMedia().then((value) {
       if (value.isNotEmpty) {
         _openSharedFile(value.first.path);
-        ReceiveSharingIntent.instance.reset(); // Memory clear
+        ReceiveSharingIntent.instance.reset();
       }
     });
   }
 
   void _openSharedFile(String path) {
     if (path.toLowerCase().endsWith('.pdf')) {
-      Future.delayed(const Duration(milliseconds: 500), () {
+      Future.delayed(const Duration(milliseconds: 400), () {
         if (mounted) {
-          String fileName = path.split('/').last;
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => PdfPreviewScreen(filePath: path, fileName: fileName),
+              builder: (_) => PdfPreviewScreen(
+                filePath: path,
+                fileName: path.split('/').last,
+              ),
             ),
           );
         }
@@ -71,160 +73,129 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // --- Logic: Pick and Open PDF ---
+  // ---------- PICK PDF ----------
   Future<void> _pickAndOpenPdf(BuildContext context) async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
     );
 
     if (result != null && result.files.single.path != null) {
-      String path = result.files.single.path!;
-      String name = result.files.single.name;
-
-      if (context.mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PdfPreviewScreen(filePath: path, fileName: name),
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PdfPreviewScreen(
+            filePath: result.files.single.path!,
+            fileName: result.files.single.name,
           ),
-        );
-      }
+        ),
+      );
     }
   }
 
-  // --- Logic: Pick and Split PDF ---
   Future<void> _pickAndSplitPdf(BuildContext context) async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
     );
 
     if (result != null && result.files.single.path != null) {
-      String path = result.files.single.path!;
-
-      if (context.mounted) {
-        showModalBottomSheet(
-          context: context,
-          backgroundColor: Colors.transparent,
-          builder: (context) => SplitOptionsSheet(
-            onExtract: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => VisualSplitScreen(filePath: path, mode: SplitMode.keep)));
-            },
-            onDelete: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => VisualSplitScreen(filePath: path, mode: SplitMode.remove)));
-            },
-            onRange: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Range Split Coming Soon!")));
-            },
-          ),
-        );
-      }
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (_) => SplitOptionsSheet(
+          onExtract: () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => VisualSplitScreen(
+                  filePath: result.files.single.path!,
+                  mode: SplitMode.keep,
+                ),
+              ),
+            );
+          },
+          onDelete: () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => VisualSplitScreen(
+                  filePath: result.files.single.path!,
+                  mode: SplitMode.remove,
+                ),
+              ),
+            );
+          },
+          onRange: () {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Range Split Coming Soon")),
+            );
+          },
+        ),
+      );
     }
   }
 
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true, 
-appBar: AppBar(
-  centerTitle: true,
-  backgroundColor: Colors.transparent, // පසුබිම (කළු Gradient එක තියෙන්න ඕනේ Click එක පේන්න)
-  elevation: 0,
-  
-  title: const Text.rich(
-    TextSpan(
-      style: TextStyle(
-        fontSize: 24, // අකුරු වල සයිස් එක
-        fontWeight: FontWeight.bold,
-      ),
-      children: [
-        // 1. "Click " කොටස (සුදු පාටින්)
-        TextSpan(
-          text: 'Click ',
-          style: TextStyle(color: Colors.white,fontSize: 15 ),
-        ),
-        
-        // 2. "PDF" කොටස (ලෝගෝ එකේ තියෙන රතු පාටින්)
-        TextSpan(
-          text: 'PDF',
-          style: TextStyle(color: Color(0xFFD32F2F)), // තද රතු පාටක්
-        ),
-      ],
-    ),
-  ),
-),
+      appBar: _buildAppBar(),
       body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        color: const Color(0xFF232526), 
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF0F2027),
+              Color(0xFF203A43),
+              Color(0xFF2C5364),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 34.0, vertical: 20.0),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildSectionHeader("Core PDF Tools"),
-                const SizedBox(height: 15),
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2, 
-                  crossAxisSpacing: 15,
-                  mainAxisSpacing: 15,
-                  childAspectRatio: 1.1, 
-                  children: [
-                    _buildToolCard(
-                      context, "View PDF", Icons.picture_as_pdf, Colors.redAccent, 
-                      () => _pickAndOpenPdf(context)
-                    ),
-                    _buildToolCard(
-                      context, "Edit PDF", Icons.edit_note, Colors.green, 
-                      () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditPdfScreen()))
-                    ),
-                    _buildToolCard(
-                      context, "Merge PDF", Icons.merge_type, Colors.blue, 
-                      () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MergePdfScreen()))
-                    ),
-                    _buildToolCard(
-                      context, "Split PDF", Icons.call_split, Colors.orange, 
-                      () => _pickAndSplitPdf(context)
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 30),
-                _buildSectionHeader("Converters"),
-                const SizedBox(height: 15),
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2, 
-                  crossAxisSpacing: 15,
-                  mainAxisSpacing: 15,
-                  childAspectRatio: 1.1,
-                  children: [
-                    _buildToolCard(
-                      context, "Image to PDF", Icons.picture_as_pdf_rounded, Colors.purple, 
-                      () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ImageToPdfScreen()))
-                    ),
-                    _buildToolCard(
-                      context, "PDF to Image", Icons.collections, Colors.indigo, 
-                      () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PdfToImageScreen()))
-                    ),
-                    _buildToolCard(
-                      context, "Text to PDF", Icons.text_fields, Colors.teal, 
-                      () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TextToPdfScreen()))
-                    ),
-                    _buildToolCard(
-                      context, "PDF to Text", Icons.article, Colors.orange, 
-                      () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PdfToTextScreen()))
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 40),
+                _sectionTitle("Core PDF Tools"),
+                const SizedBox(height: 14),
+                _grid([
+                  _toolCard("View PDF", Icons.picture_as_pdf, Colors.redAccent,
+                      () => _pickAndOpenPdf(context)),
+                  _toolCard("Edit PDF", Icons.edit_note, Colors.green,
+                      () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const EditPdfScreen()))),
+                  _toolCard("Merge PDF", Icons.merge_type, Colors.blue,
+                      () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const MergePdfScreen()))),
+                  _toolCard("Split PDF", Icons.call_split, Colors.orange,
+                      // දැන් කෙලින්ම අලුත් Landing Page එකට යනවා
+                      () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const SplitPdfScreen())))
+                ]),
+                const SizedBox(height: 28),
+                _sectionTitle("Converters"),
+                const SizedBox(height: 14),
+                _grid([
+                  _toolCard("Image to PDF", Icons.image, Colors.purple,
+                      () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const ImageToPdfScreen()))),
+                  _toolCard("PDF to Image", Icons.collections, Colors.indigo,
+                      () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const PdfToImageScreen()))),
+                  _toolCard("Text to PDF", Icons.text_fields, Colors.teal,
+                      () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const TextToPdfScreen()))),
+                  _toolCard("PDF to Text", Icons.article, Colors.orange,
+                      () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const PdfToTextScreen()))),
+                ]),
+                const SizedBox(height: 32),
               ],
             ),
           ),
@@ -233,55 +204,100 @@ appBar: AppBar(
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-        color: Colors.white, 
-        letterSpacing: 0.5,
+  // ---------- APP BAR ----------
+  AppBar _buildAppBar() {
+    return AppBar(
+      elevation: 0,
+      centerTitle: false,
+      titleSpacing: 22,
+      backgroundColor: const Color(0xFF0F2027),
+      title: const Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: "Click ",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 19,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            TextSpan(
+              text: "PDF",
+              style: TextStyle(
+                color: Color(0xFFD32F2F),
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.1,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildToolCard(BuildContext context, String title, IconData icon, Color color, VoidCallback onTap) {
+  // ---------- SECTION TITLE (NO UNDERLINE) ----------
+  Widget _sectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        color: Colors.white,
+        letterSpacing: 0.6,
+      ),
+    );
+  }
+
+  // ---------- GRID ----------
+  Widget _grid(List<Widget> children) {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      mainAxisSpacing: 18,
+      crossAxisSpacing: 18,
+      childAspectRatio: 1.2, // 👈 cards smaller & smarter
+      children: children,
+    );
+  }
+
+  // ---------- TOOL CARD (COMPACT) ----------
+  Widget _toolCard(
+      String title, IconData icon, Color color, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1), 
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.2), width: 1), 
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(18),
+          color: Colors.white.withOpacity(0.08),
+          border: Border.all(color: Colors.white.withOpacity(0.18)),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              height: 48,
+              width: 48,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.2), 
                 shape: BoxShape.circle,
+                color: color.withOpacity(0.85),
               ),
-              child: Icon(icon, color: color, size: 30), 
+              child: Icon(icon, color: Colors.white, size: 26),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Text(
               title,
+              textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 15,
+                fontSize: 14.5,
                 fontWeight: FontWeight.w600,
-                color: Colors.white, 
+                color: Colors.white,
               ),
             ),
+         
           ],
         ),
       ),

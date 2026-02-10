@@ -11,7 +11,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Love PDF', // App එකේ නම
+      title: 'Click PDF', // App එකේ නම
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE53935)), // PDF නිසා රතු පාට තේමාවක් ගමු

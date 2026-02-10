@@ -2,8 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:pdfx/pdfx.dart' as pdfx; // Preview පින්තූර පෙන්වන්න
-import 'package:syncfusion_flutter_pdf/pdf.dart' as syncfusion; // Text ගන්න
+import 'package:pdfx/pdfx.dart' as pdfx; 
+import 'package:syncfusion_flutter_pdf/pdf.dart' as syncfusion; 
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:love_pdf/presentation/screens/pdf_preview_screen.dart';
@@ -16,18 +16,13 @@ class PdfToTextScreen extends StatefulWidget {
 }
 
 class _PdfToTextScreenState extends State<PdfToTextScreen> {
-  // Visual Preview සඳහා
   String? _filePath;
   String? _fileName;
   pdfx.PdfDocument? _visualPdfDoc;
-  
-  // Text Extraction සඳහා
   syncfusion.PdfDocument? _extractionPdfDoc;
-  
   List<Uint8List?> _pageThumbnails = [];
   bool _isLoading = false;
 
-  // 1. PDF එක තෝරාගැනීම
   Future<void> _pickPdf() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -41,19 +36,15 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
         _isLoading = true;
         _pageThumbnails = [];
       });
-
       _loadPdfData();
     }
   }
 
-  // 2. PDF එක Load කිරීම (Visual & Text Data)
   Future<void> _loadPdfData() async {
     try {
-      // A. Visual Thumbnails සඳහා Load කිරීම
       _visualPdfDoc = await pdfx.PdfDocument.openFile(_filePath!);
       int pageCount = _visualPdfDoc!.pagesCount;
       
-      // B. Text Extraction සඳහා Syncfusion Load කිරීම (Memory එකට)
       final File file = File(_filePath!);
       final List<int> bytes = await file.readAsBytes();
       _extractionPdfDoc = syncfusion.PdfDocument(inputBytes: bytes);
@@ -62,14 +53,11 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
         _pageThumbnails = List.filled(pageCount, null);
       });
 
-      // Thumbnails හදනවා (Grid එකට)
       for (int i = 1; i <= pageCount; i++) {
         if (!mounted) break;
         final page = await _visualPdfDoc!.getPage(i);
         final pageImage = await page.render(
-          width: 200, 
-          height: 300, 
-          format: pdfx.PdfPageImageFormat.png,
+          width: 200, height: 300, format: pdfx.PdfPageImageFormat.png,
         );
         await page.close();
 
@@ -80,20 +68,50 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
         }
         await Future.delayed(const Duration(milliseconds: 10));
       }
-
       setState(() => _isLoading = false);
-
     } catch (e) {
       debugPrint("Error: $e");
       setState(() => _isLoading = false);
     }
   }
 
-  // 3. තෝරාගත් පිටුවේ Text එක Edit කරන Dialog එක open කිරීම
+  // 🔥 UPDATED: 1st Line එක තියලා, මැදට Space එකක් දෙනවා
+  String _cleanText(String text) {
+    if (text.isEmpty) return "";
+
+    // 1. Text එක පේළි වලට කඩනවා
+    List<String> lines = text.split(RegExp(r'\r?\n'));
+
+    // 2. හිස් පේළි අයින් කරනවා
+    lines.removeWhere((line) => line.trim().isEmpty);
+
+    if (lines.isEmpty) return "";
+
+    // 3. පළවෙනි පේළිය (Header) වෙන් කරගන්නවා
+    String heading = lines[0].trim();
+
+    // 4. ඉතුරු ටික (Body) එකතු කරලා Paragraph එකක් කරනවා
+    String body = "";
+    if (lines.length > 1) {
+      // ඉතුරු පේළි ටික එකතු කරනවා (Newlines වෙනුවට Spaces දාලා)
+      body = lines.sublist(1).join(" ");
+      
+      // අනවශ්‍ය Symbols අයින් කරනවා
+      body = body.replaceAll(RegExp(r'\s+'), ' ').trim(); 
+      body = body.replaceAll('- ', ''); // Hyphenation fix
+    }
+
+    // 5. Header එකයි Body එකයි එකතු කරනවා (මැදට Newlines 2ක් දාලා)
+    if (body.isNotEmpty) {
+      return "$heading\n\n$body";
+    } else {
+      return heading;
+    }
+  }
+
   void _openPageEditor(int pageIndex) {
     if (_extractionPdfDoc == null) return;
 
-    // අදාළ පිටුවේ Text එක Extract කරනවා
     String extractedText = "";
     try {
       extractedText = syncfusion.PdfTextExtractor(_extractionPdfDoc!)
@@ -103,10 +121,12 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
     }
 
     if (extractedText.trim().isEmpty) {
-      extractedText = "[No selectable text found on this page. It might be an image.]";
+      extractedText = "[No selectable text found]";
+    } else {
+      // Clean කරනවා
+      extractedText = _cleanText(extractedText);
     }
 
-    // Editor එක Open කරනවා
     showDialog(
       context: context,
       barrierDismissible: false, 
@@ -121,106 +141,132 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true, 
       appBar: AppBar(
-        title: const Text("Tap Page to Edit Text"),
+        title: const Text("PDF to Text", style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
         actions: [
           if (_filePath != null)
             IconButton(
-              icon: const Icon(Icons.upload_file),
+              icon: const Icon(Icons.upload_file, color: Colors.amberAccent),
               onPressed: _pickPdf,
               tooltip: "Pick New PDF",
             )
         ],
       ),
-      body: Column(
-        children: [
-          // --- EMPTY STATE ---
-          if (_filePath == null)
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.touch_app, size: 80, color: Colors.grey[300]),
-                    const SizedBox(height: 20),
-                    const Text("Tap a page to extract & edit text"),
-                    const SizedBox(height: 20),
-                    ElevatedButton.icon(
-                      onPressed: _pickPdf,
-                      icon: const Icon(Icons.folder_open),
-                      label: const Text("Select PDF"),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          
-          // --- LOADING ---
-          else if (_isLoading && _pageThumbnails.every((e) => e == null))
-            const Expanded(child: Center(child: CircularProgressIndicator()))
-
-          // --- GRID VIEW (PREVIEW) ---
-          else
-            Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.all(10),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  childAspectRatio: 0.7,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                itemCount: _pageThumbnails.length,
-                itemBuilder: (context, index) {
-                  final imageBytes = _pageThumbnails[index];
-                  return GestureDetector(
-                    onTap: () => _openPageEditor(index), // Click කළාම Editor එක එනවා
-                    child: Stack(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey[300]!),
-                            borderRadius: BorderRadius.circular(8),
-                            color: Colors.grey[100],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(5),
-                            child: imageBytes != null
-                                ? Image.memory(imageBytes, fit: BoxFit.contain, width: double.infinity, height: double.infinity)
-                                : const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
-                          ),
-                        ),
-                        // Page Number Badge
-                        Positioned(
-                          top: 5, left: 5,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
-                            child: Text("${index + 1}", style: const TextStyle(color: Colors.white, fontSize: 10)),
-                          ),
-                        ),
-                        // Edit Icon Overlay
-                        Positioned.fill(
-                          child: Container(
-                            color: Colors.transparent,
-                            child: const Center(
-                              child: Icon(Icons.edit, color: Colors.white54, size: 30),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: _filePath == null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(35),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.05),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                                boxShadow: [BoxShadow(color: Colors.amberAccent.withOpacity(0.2), blurRadius: 20, spreadRadius: 5)]
+                              ),
+                              child: const Icon(Icons.text_snippet, size: 80, color: Colors.amberAccent),
                             ),
+                            const SizedBox(height: 40),
+                            const Text("PDF to Text", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white)),
+                            const SizedBox(height: 15),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 40),
+                              child: Text("Extract editable text from your PDF documents instantly.", textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: Colors.white70, height: 1.5)),
+                            ),
+                            const SizedBox(height: 60),
+                            SizedBox(
+                              width: 250, height: 55,
+                              child: ElevatedButton.icon(
+                                onPressed: _pickPdf,
+                                icon: const Icon(Icons.folder_open),
+                                label: const Text("Select PDF File"),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color.fromARGB(204, 237, 237, 19), foregroundColor: const Color.fromARGB(255, 255, 253, 253), elevation: 8,
+                                  textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                ),
+                              ),
+                            )
+                          ],
+                        ),
+                      )
+                    : (_isLoading && _pageThumbnails.every((e) => e == null))
+                        ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                        : GridView.builder(
+                            padding: const EdgeInsets.all(15),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3, childAspectRatio: 0.7, crossAxisSpacing: 15, mainAxisSpacing: 15,
+                            ),
+                            itemCount: _pageThumbnails.length,
+                            itemBuilder: (context, index) {
+                              final imageBytes = _pageThumbnails[index];
+                              return GestureDetector(
+                                onTap: () => _openPageEditor(index),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.08), borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: imageBytes != null
+                                              ? Image.memory(imageBytes, fit: BoxFit.contain, width: double.infinity, height: double.infinity)
+                                              : const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 5, left: 5,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(color: Colors.black.withOpacity(0.7), borderRadius: BorderRadius.circular(4)),
+                                          child: Text("${index + 1}", style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        bottom: 5, right: 5,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(5),
+                                          decoration: BoxDecoration(color: Colors.amberAccent.withOpacity(0.8), shape: BoxShape.circle),
+                                          child: const Icon(Icons.edit, size: 14, color: Colors.black),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                        )
-                      ],
-                    ),
-                  );
-                },
               ),
-            ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-// --- වෙන් කරපු EDITOR Dialog එක (Manual Control) ---
 class _PageTextEditorDialog extends StatefulWidget {
   final String initialText;
   final int pageIndex;
@@ -237,89 +283,57 @@ class _PageTextEditorDialog extends StatefulWidget {
 }
 
 class _PageTextEditorDialogState extends State<_PageTextEditorDialog> {
-  late TextEditingController _titleController;
   late TextEditingController _bodyController;
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    // === MANUAL LOGIC ===
-    // Heading එක හිස්ව තබන්න.
-    // මුළු Text එකම Body එකට දාන්න.
-    // User ට අවශ්‍ය නම් Cut-Paste කරගන්න පුළුවන්.
-    _titleController = TextEditingController(text: ""); 
     _bodyController = TextEditingController(text: widget.initialText);
   }
 
-  // Copy Function
   void _copyText() {
-    Clipboard.setData(ClipboardData(text: "${_titleController.text}\n\n${_bodyController.text}"));
+    Clipboard.setData(ClipboardData(text: _bodyController.text));
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Copied to Clipboard!")));
   }
 
-  // Save as PDF Function
-  Future<void> _saveAsPdf() async {
+  Future<void> _saveAsTextFile() async {
     setState(() => _isSaving = true);
 
     try {
-      final syncfusion.PdfDocument document = syncfusion.PdfDocument();
-      final syncfusion.PdfPage page = document.pages.add();
-
-      // Fonts Definition
-      final syncfusion.PdfFont titleFont = syncfusion.PdfStandardFont(
-        syncfusion.PdfFontFamily.helvetica, 24, style: syncfusion.PdfFontStyle.bold
-      );
-      final syncfusion.PdfFont bodyFont = syncfusion.PdfStandardFont(
-        syncfusion.PdfFontFamily.helvetica, 12
-      );
-      final syncfusion.PdfBrush brush = syncfusion.PdfSolidBrush(syncfusion.PdfColor(0, 0, 0));
+      Directory? directory;
+      if (Platform.isAndroid) {
+        directory = Directory('/storage/emulated/0/Download');
+      } else {
+        directory = await getDownloadsDirectory();
+      }
       
-      double yPos = 0;
-
-      // 1. Heading එක ලියන්නේ User විසින් Type කරොත් විතරයි
-      if (_titleController.text.trim().isNotEmpty) {
-        page.graphics.drawString(
-          _titleController.text,
-          titleFont,
-          brush: brush,
-          bounds: Rect.fromLTWH(0, yPos, page.getClientSize().width, 60),
-          format: syncfusion.PdfStringFormat(alignment: syncfusion.PdfTextAlignment.center), // Center Heading
-        );
-        yPos += 50;
-        
-        // ඉරක් ගහනවා Title යටින්
-        page.graphics.drawLine(
-          syncfusion.PdfPen(syncfusion.PdfColor(200, 200, 200)),
-          Offset(20, yPos),
-          Offset(page.getClientSize().width - 20, yPos)
-        );
-        yPos += 20;
+      if (directory == null || !directory.existsSync()) {
+        directory = await getApplicationDocumentsDirectory();
       }
 
-      // 2. Body එක ලිවීම (Multi-line text handling)
-      syncfusion.PdfTextElement(
-        text: _bodyController.text, 
-        font: bodyFont,
-        brush: brush
-      ).draw(
-        page: page,
-        bounds: Rect.fromLTWH(0, yPos, page.getClientSize().width, page.getClientSize().height - yPos),
-      );
+      String finalContent = _bodyController.text;
 
-      // Save File
-      final dir = await getApplicationDocumentsDirectory();
-      // නම: OriginalName_PageX_Edited.pdf
-      final fileName = "${widget.originalFileName}_Page${widget.pageIndex + 1}_Edited.pdf";
-      final path = '${dir.path}/$fileName';
+      final fileName = "${widget.originalFileName}_Page${widget.pageIndex + 1}.txt";
+      final path = '${directory.path}/$fileName';
+      final File file = File(path);
 
-      await File(path).writeAsBytes(await document.save());
-      document.dispose();
+      await file.writeAsString(finalContent);
 
       if (mounted) {
         setState(() => _isSaving = false);
-        Navigator.pop(context); // Close Dialog
-        Navigator.push(context, MaterialPageRoute(builder: (_) => PdfPreviewScreen(filePath: path, fileName: fileName)));
+        Navigator.pop(context); 
+        
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text("Saved as Text File!"),
+            content: Text("File saved to Downloads:\n\n$fileName"),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("OK")),
+            ],
+          ),
+        );
       }
     } catch (e) {
       setState(() => _isSaving = false);
@@ -331,77 +345,62 @@ class _PageTextEditorDialogState extends State<_PageTextEditorDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       insetPadding: const EdgeInsets.all(15),
+      backgroundColor: const Color(0xFF1E2F38), 
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Container(
         padding: const EdgeInsets.all(15),
-        height: MediaQuery.of(context).size.height * 0.8,
+        height: MediaQuery.of(context).size.height * 0.7, 
         child: Column(
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("Edit Page ${widget.pageIndex + 1}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                Text("Edit Page ${widget.pageIndex + 1}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                IconButton(icon: const Icon(Icons.close, color: Colors.white70), onPressed: () => Navigator.pop(context)),
               ],
             ),
-            const Divider(),
+            const Divider(color: Colors.white24),
             
-            // --- Heading Input (හිස්ව පවතී) ---
-            TextField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: "Heading (Optional - Type here to make Bold)",
-                hintText: "Cut text from body and paste here if needed...",
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                prefixIcon: Icon(Icons.title),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-            const SizedBox(height: 10),
-
-            // --- Body Input (මුළු Text එකම මෙතන) ---
             Expanded(
               child: Container(
                 padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey[300]!),
+                  border: Border.all(color: Colors.white.withOpacity(0.3)),
                   borderRadius: BorderRadius.circular(5),
-                  color: Colors.grey[50],
+                  color: Colors.black12,
                 ),
                 child: TextField(
                   controller: _bodyController,
                   maxLines: null,
                   expands: true,
-                  decoration: const InputDecoration(
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                  decoration: InputDecoration(
                     border: InputBorder.none,
                     hintText: "Content goes here...",
-                    contentPadding: EdgeInsets.all(10),
+                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                    contentPadding: const EdgeInsets.all(10),
                   ),
-                  style: const TextStyle(fontSize: 16),
                 ),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 15),
 
-            // Actions
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 TextButton.icon(
                   onPressed: _copyText,
-                  icon: const Icon(Icons.copy, size: 20),
-                  label: const Text("Copy All"),
+                  icon: const Icon(Icons.copy, size: 20, color: Colors.amberAccent),
+                  label: const Text("Copy Text", style: TextStyle(color: Colors.amberAccent)),
                 ),
+                
                 ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
-                  onPressed: _isSaving ? null : _saveAsPdf,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.amberAccent, foregroundColor: Colors.black),
+                  onPressed: _isSaving ? null : _saveAsTextFile, 
                   icon: _isSaving 
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) 
-                      : const Icon(Icons.save, size: 18),
-                  label: Text(_isSaving ? "Saving..." : "Save PDF"),
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black)) 
+                      : const Icon(Icons.description, size: 18), 
+                  label: Text(_isSaving ? "Saving..." : "Save as .txt"),
                 ),
               ],
             )

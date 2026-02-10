@@ -30,18 +30,15 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
     try {
       // 1. අලුත් PDF Document එකක් හදනවා
       final PdfDocument document = PdfDocument();
-      final PdfPage page = document.pages.add(); // පළමු පිටුව එකතු කරනවා
+      final PdfPage page = document.pages.add();
 
       // 2. Fonts සහ Colors සකස් කරගැනීම
-      // Title Font (ලොකු සහ Bold)
       final PdfFont titleFont = PdfStandardFont(PdfFontFamily.helvetica, 24, style: PdfFontStyle.bold);
-      // Body Font (සාමාන්‍ය)
       final PdfFont bodyFont = PdfStandardFont(PdfFontFamily.helvetica, 14);
-
-      final PdfBrush brush = PdfSolidBrush(PdfColor(0, 0, 0)); // කළු පාට
+      final PdfBrush brush = PdfSolidBrush(PdfColor(0, 0, 0));
 
       // 3. Title එක ලිවීම
-      double yPos = 0; // උඩ ඉඳන් පහළට දුර (Cursor position වගේ)
+      double yPos = 0;
 
       if (_titleController.text.isNotEmpty) {
         page.graphics.drawString(
@@ -49,28 +46,26 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
           titleFont,
           brush: brush,
           bounds: Rect.fromLTWH(0, yPos, page.getClientSize().width, 50),
-          format: PdfStringFormat(alignment: PdfTextAlignment.center), // මැදට
+          format: PdfStringFormat(alignment: PdfTextAlignment.center),
         );
-        yPos += 50; // ඊළඟ පේළියට ඉඩ තියනවා
+        yPos += 50;
       }
 
-      // ඉරක් ගහනවා Title එකට යටින් (Optional)
+      // ඉරක් ගහනවා Title එකට යටින්
       page.graphics.drawLine(
         PdfPen(PdfColor(200, 200, 200), width: 1),
         Offset(0, yPos),
         Offset(page.getClientSize().width, yPos)
       );
-      yPos += 20; // තව පොඩි ඉඩක්
+      yPos += 20;
 
-      // 4. Body එක ලිවීම (දිග Text එකක් වුනත් පිටුවෙන් පිටුවට යන්න හදනවා)
-      // Syncfusion එකේදි දිග Text එකක් ඉබේම කඩලා ලියන්න 'PdfTextElement' පාවිච්චි කරනවා.
+      // 4. Body එක ලිවීම
       PdfTextElement textElement = PdfTextElement(
         text: _bodyController.text,
         font: bodyFont,
         brush: brush,
       );
 
-      // Layout එක හදනවා (මේකෙන් තමයි පිටුව ඉවර වුනාම අලුත් පිටුවක් ඉබේම ගන්නේ)
       PdfLayoutResult? layoutResult = textElement.draw(
         page: page,
         bounds: Rect.fromLTWH(0, yPos, page.getClientSize().width, page.getClientSize().height - yPos),
@@ -88,9 +83,6 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
       // 6. Preview එකට යවනවා
       if (mounted) {
         setState(() => _isGenerating = false);
-        // Input Fields සුද්ද කරනවා (Optional)
-        // _titleController.clear();
-        // _bodyController.clear();
         
         Navigator.push(
           context,
@@ -111,12 +103,17 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true, // Gradient එක උඩටම යවන්න
       appBar: AppBar(
-        title: const Text("Text to PDF"),
+        title: const Text("Text to PDF", style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent, // Transparent
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
         actions: [
           // Clear Button
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.delete_sweep_outlined, color: Colors.tealAccent),
             tooltip: "Clear Text",
             onPressed: () {
               _titleController.clear();
@@ -125,62 +122,126 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
           )
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            // --- Title Input ---
-            TextField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: "Document Title",
-                hintText: "Enter a topic...",
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.title),
-              ),
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-            const SizedBox(height: 20),
+      body: Container(
+        // Dark Theme Gradient
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      // --- Icon Area ---
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(15),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.05),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white.withOpacity(0.1)),
+                            boxShadow: [
+                              BoxShadow(color: Colors.tealAccent.withOpacity(0.1), blurRadius: 10, spreadRadius: 2)
+                            ]
+                          ),
+                          child: const Icon(Icons.edit_note, size: 40, color: Colors.tealAccent),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
 
-            // --- Body Input (Expanded) ---
-            Expanded(
-              child: TextField(
-                controller: _bodyController,
-                keyboardType: TextInputType.multiline,
-                maxLines: null, // ඕන තරම් පේළි ගහන්න පුළුවන්
-                textAlignVertical: TextAlignVertical.top, // අකුරු උඩින් පටන් ගන්නවා
-                decoration: const InputDecoration(
-                  labelText: "Content",
-                  hintText: "Type your notes here...",
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true, // Label එක උඩට ගන්නවා
-                ),
-                style: const TextStyle(fontSize: 16),
-              ),
-            ),
-            const SizedBox(height: 20),
+                      // --- Title Input (Glass Effect) ---
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: Colors.white.withOpacity(0.1)),
+                        ),
+                        child: TextField(
+                          controller: _titleController,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                          cursorColor: Colors.tealAccent,
+                          decoration: InputDecoration(
+                            labelText: "Document Title",
+                            labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+                            hintText: "Enter a topic...",
+                            hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                            border: InputBorder.none,
+                            prefixIcon: const Icon(Icons.title, color: Colors.tealAccent),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
 
-            // --- Generate Button ---
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: _isGenerating ? null : _generatePdf,
-                icon: _isGenerating
-                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.picture_as_pdf),
-                label: Text(
-                  _isGenerating ? "Creating PDF..." : "Create PDF",
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      // --- Body Input (Glass Effect) ---
+                      Container(
+                        height: MediaQuery.of(context).size.height * 0.45, // Fixed height for body
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: Colors.white.withOpacity(0.1)),
+                        ),
+                        child: TextField(
+                          controller: _bodyController,
+                          keyboardType: TextInputType.multiline,
+                          maxLines: null,
+                          expands: true, // Fills the container
+                          textAlignVertical: TextAlignVertical.top,
+                          style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.5),
+                          cursorColor: Colors.tealAccent,
+                          decoration: InputDecoration(
+                            labelText: "Content",
+                            labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+                            hintText: "Type your notes here...",
+                            hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                            border: InputBorder.none,
+                            alignLabelWithHint: true,
+                            contentPadding: const EdgeInsets.all(20),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+
+              // --- Bottom Action Button ---
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F2027).withOpacity(0.95), // Dark Bottom Bar
+                  border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal, // Teal Button
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      elevation: 5,
+                    ),
+                    onPressed: _isGenerating ? null : _generatePdf,
+                    icon: _isGenerating
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.picture_as_pdf),
+                    label: Text(
+                      _isGenerating ? "Creating PDF..." : "Create PDF",
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

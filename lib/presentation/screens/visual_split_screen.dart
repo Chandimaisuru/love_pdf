@@ -22,10 +22,9 @@ class _VisualSplitScreenState extends State<VisualSplitScreen> {
   late pdfx.PdfDocument _pdfDocument;
   final Set<int> _selectedIndices = {};
   bool _isInitLoading = true;
-  bool _isSaving = false; // Save වෙනකොට පෙන්වන්න
+  bool _isSaving = false;
   int _totalPages = 0;
   
-  // පින්තූර ටික Store කරගන්න List එකක් (Cache)
   List<Uint8List?> _pageImages = [];
 
   @override
@@ -34,34 +33,28 @@ class _VisualSplitScreenState extends State<VisualSplitScreen> {
     _initPdf();
   }
 
-  // 1. PDF එක Open කරලා, එකෙන් එක Images හදනවා
   Future<void> _initPdf() async {
     try {
       _pdfDocument = await pdfx.PdfDocument.openFile(widget.filePath);
       _totalPages = _pdfDocument.pagesCount;
 
-      // මුලින් හිස් List එකක් හදාගන්නවා
       setState(() {
         _pageImages = List.filled(_totalPages, null);
         _isInitLoading = false;
       });
 
-      // ඊට පස්සේ හිමින් සැරේ එකෙන් එක පින්තූර Load කරනවා (Background Process)
       _generateThumbnails();
-
     } catch (e) {
       debugPrint("Error loading PDF: $e");
     }
   }
 
-  // එකවරක් එක පිටුව බැගින් Load කරන Function එක (මේක නිසා හිර වෙන්නේ නෑ)
   Future<void> _generateThumbnails() async {
     for (int i = 1; i <= _totalPages; i++) {
-      if (!mounted) break; // Screen එකෙන් එළියට ගිහින් නම් නවත්තනවා
+      if (!mounted) break;
       
       try {
         final page = await _pdfDocument.getPage(i);
-        // Resolution එක අඩු කළා (Width: 200) ඉක්මනට එන්න
         final pageImage = await page.render(
           width: 200, 
           height: 300, 
@@ -74,7 +67,6 @@ class _VisualSplitScreenState extends State<VisualSplitScreen> {
             _pageImages[i - 1] = pageImage.bytes;
           });
         }
-        // පොඩි විරාමයක් දෙනවා UI එක හිර නොවෙන්න
         await Future.delayed(const Duration(milliseconds: 10)); 
       } catch (e) {
         debugPrint("Error rendering page $i: $e");
@@ -82,7 +74,7 @@ class _VisualSplitScreenState extends State<VisualSplitScreen> {
     }
   }
 
-  // --- SAVE LOGIC ---
+  // --- SAVE LOGIC (Same as before) ---
   Future<void> _processAndSave() async {
     if (_selectedIndices.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select at least one page.")));
@@ -150,29 +142,49 @@ class _VisualSplitScreenState extends State<VisualSplitScreen> {
   @override
   Widget build(BuildContext context) {
     String title = widget.mode == SplitMode.keep ? "Select Pages to KEEP" : "Select Pages to REMOVE";
-    Color activeColor = widget.mode == SplitMode.keep ? Colors.green : Colors.red;
+    // පාට වෙනස් කළා Dark Theme එකට කැපී පේන්න
+    Color activeColor = widget.mode == SplitMode.keep ? const Color(0xFF00E676) : const Color(0xFFFF5252);
 
     return Scaffold(
-      appBar: AppBar(title: Text(title, style: const TextStyle(fontSize: 16))),
-      body: _isInitLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Stack(
-              children: [
-                Column(
+      extendBodyBehindAppBar: true, // Gradient එක උඩටම යන්න
+      appBar: AppBar(
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        backgroundColor: const Color(0xFF0F2027).withOpacity(0.9), // අඳුරු පසුබිම
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+      ),
+      body: Container(
+        // Dark Theme Gradient Background
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF0F2027),
+              Color(0xFF203A43),
+              Color(0xFF2C5364),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: _isInitLoading
+            ? const Center(child: CircularProgressIndicator(color: Colors.white))
+            : SafeArea(
+                child: Column(
                   children: [
+                    // Grid View එක
                     Expanded(
                       child: GridView.builder(
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(15),
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 3,
                           childAspectRatio: 0.7,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 15,
+                          mainAxisSpacing: 15,
                         ),
                         itemCount: _totalPages,
                         itemBuilder: (context, index) {
                           bool isSelected = _selectedIndices.contains(index);
-                          // කලින් Load කරපු Image List එකෙන් පින්තූරය ගන්නවා
                           final imageBytes = _pageImages[index];
 
                           return GestureDetector(
@@ -185,16 +197,21 @@ class _VisualSplitScreenState extends State<VisualSplitScreen> {
                                 }
                               });
                             },
-                            child: Stack(
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    border: isSelected ? Border.all(color: activeColor, width: 3) : Border.all(color: Colors.grey[300]!),
-                                    borderRadius: BorderRadius.circular(8),
-                                    color: Colors.grey[100],
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(5),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              decoration: BoxDecoration(
+                                // Select වුණාම පාට වෙනස් වෙනවා
+                                border: isSelected 
+                                    ? Border.all(color: activeColor, width: 3) 
+                                    : Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+                                borderRadius: BorderRadius.circular(12),
+                                color: isSelected ? activeColor.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+                              ),
+                              child: Stack(
+                                children: [
+                                  // PDF Image
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(9),
                                     child: imageBytes != null
                                         ? Image.memory(
                                             imageBytes,
@@ -202,54 +219,82 @@ class _VisualSplitScreenState extends State<VisualSplitScreen> {
                                             width: double.infinity,
                                             height: double.infinity,
                                           )
-                                        : const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+                                        : const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))),
                                   ),
-                                ),
-                                Positioned(
-                                  top: 5, left: 5,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
-                                    child: Text("${index + 1}", style: const TextStyle(color: Colors.white, fontSize: 10)),
-                                  ),
-                                ),
-                                if (isSelected)
+                                  
+                                  // Page Number Tag
                                   Positioned(
-                                    top: 5, right: 5,
-                                    child: CircleAvatar(
-                                      radius: 10,
-                                      backgroundColor: activeColor,
-                                      child: const Icon(Icons.check, size: 14, color: Colors.white),
+                                    top: 5,
+                                    left: 5,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.7),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        "${index + 1}",
+                                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                      ),
                                     ),
                                   ),
-                              ],
+
+                                  // Checkbox Icon (Select වුණාම පේනවා)
+                                  if (isSelected)
+                                    Positioned(
+                                      top: 5,
+                                      right: 5,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: activeColor,
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4)
+                                          ]
+                                        ),
+                                        padding: const EdgeInsets.all(4),
+                                        child: const Icon(Icons.check, size: 14, color: Colors.black),
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
                           );
                         },
                       ),
                     ),
-                    Padding(
+
+                    // Bottom Button Section
+                    Container(
                       padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F2027).withOpacity(0.9), // යට බාර් එකේ පාට
+                        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
+                      ),
                       child: SizedBox(
                         width: double.infinity,
-                        height: 50,
+                        height: 55,
                         child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: activeColor, foregroundColor: Colors.white),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: activeColor,
+                            foregroundColor: Colors.black, // අකුරු කලු පාටයි (Green/Red උඩ හොඳට පේනවා)
+                            elevation: 5,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          ),
                           onPressed: _isSaving ? null : _processAndSave,
-                          child: Text(_isSaving ? "Processing..." : (widget.mode == SplitMode.keep ? "Extract Selected" : "Delete Selected")),
+                          child: _isSaving 
+                              ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                              : Text(
+                                  widget.mode == SplitMode.keep ? "Extract Selected Pages" : "Delete Selected Pages",
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
                         ),
                       ),
                     )
                   ],
                 ),
-                // Loading Overlay (Save වෙනකොට)
-                if (_isSaving)
-                  Container(
-                    color: Colors.black54,
-                    child: const Center(child: CircularProgressIndicator(color: Colors.white)),
-                  )
-              ],
-            ),
+              ),
+      ),
     );
   }
 }

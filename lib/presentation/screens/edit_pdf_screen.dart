@@ -7,7 +7,7 @@ import 'package:pdfx/pdfx.dart' as pdfx;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as syncfusion; 
 import 'package:path_provider/path_provider.dart';
 import 'package:love_pdf/presentation/screens/pdf_preview_screen.dart';
-import 'package:flutter/services.dart'; // For Clipboard
+import 'package:flutter/services.dart'; 
 
 // පිටුවේ වර්ගය
 enum PageType { pdfPage, image }
@@ -114,17 +114,15 @@ class _EditPdfScreenState extends State<EditPdfScreen> {
     }
   }
 
-  // 3. Page Content Edit කිරීම (NEW FEATURE)
+  // 3. Page Content Edit කිරීම
   Future<void> _editPageContent(int index) async {
     final item = _pages[index];
     
-    // Image එකක් නම් Edit කරන්න බෑ (Text නෑනේ)
     if (item.type != PageType.pdfPage || item.pdfPath == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cannot edit text in an image file.")));
       return;
     }
 
-    // Text Extract කිරීම
     String extractedText = "";
     try {
       final File file = File(item.pdfPath!);
@@ -144,7 +142,6 @@ class _EditPdfScreenState extends State<EditPdfScreen> {
       extractedText = "[No selectable text found on this page]";
     }
 
-    // Editor Dialog එක පෙන්වීම
     final String? newPdfPath = await showDialog<String>(
       context: context,
       barrierDismissible: false,
@@ -153,11 +150,9 @@ class _EditPdfScreenState extends State<EditPdfScreen> {
       ),
     );
 
-    // වෙනස් කරලා Save කළා නම්
     if (newPdfPath != null && mounted) {
       setState(() => _isLoading = true);
       
-      // අලුත් පිටුවේ Thumbnail එක හදනවා
       final document = await pdfx.PdfDocument.openFile(newPdfPath);
       final page = await document.getPage(1);
       final pageImage = await page.render(
@@ -168,13 +163,12 @@ class _EditPdfScreenState extends State<EditPdfScreen> {
 
       if (pageImage != null) {
         setState(() {
-          // පරණ පිටුව අයින් කරලා අලුත් එක දානවා
           _pages[index] = PdfPageItem(
             type: PageType.pdfPage,
             thumbnailBytes: pageImage.bytes,
-            pdfPath: newPdfPath, // අලුත් තාවකාලික ෆයිල් එක
-            pdfPageIndex: 0, // අලුත් ෆයිල් එකේ තියෙන්නේ පිටු 1යි
-            rotationAngle: 0, // Edit කළාම Rotate එක Reset වෙනවා (Clean start)
+            pdfPath: newPdfPath, 
+            pdfPageIndex: 0, 
+            rotationAngle: 0, 
           );
         });
       }
@@ -182,7 +176,7 @@ class _EditPdfScreenState extends State<EditPdfScreen> {
     }
   }
 
-  // 4. Save Logic (Mix of PDF Pages & Images)
+  // 4. Save Logic
   Future<void> _savePdf() async {
     if (_pages.isEmpty) return;
     setState(() => _isSaving = true);
@@ -253,28 +247,53 @@ class _EditPdfScreenState extends State<EditPdfScreen> {
   void _showAddOptions() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.transparent, // Transparent to show rounded corners
       builder: (context) {
-        return SafeArea(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text("Add Pages", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 15),
-                ListTile(
-                  leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
-                  title: const Text("Add from PDF"),
-                  onTap: () { Navigator.pop(context); _pickAndAddPdf(); },
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF1E2F38), // Dark Sheet Color
+            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+               Center(
+                child: Container(
+                  width: 50, height: 5,
+                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
                 ),
-                ListTile(
-                  leading: const Icon(Icons.image, color: Colors.blue),
-                  title: const Text("Add Images"),
-                  onTap: () { Navigator.pop(context); _pickAndAddImage(); },
+              ),
+              const SizedBox(height: 20),
+              const Text("Add Pages", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+              const SizedBox(height: 20),
+              
+              // Add PDF Button
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.2), shape: BoxShape.circle),
+                  child: const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
                 ),
-              ],
-            ),
+                title: const Text("Add from PDF", style: TextStyle(color: Colors.white)),
+                onTap: () { Navigator.pop(context); _pickAndAddPdf(); },
+              ),
+              
+              const SizedBox(height: 10),
+
+              // Add Image Button
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.2), shape: BoxShape.circle),
+                  child: const Icon(Icons.image, color: Colors.blueAccent),
+                ),
+                title: const Text("Add Images", style: TextStyle(color: Colors.white)),
+                onTap: () { Navigator.pop(context); _pickAndAddImage(); },
+              ),
+              const SizedBox(height: 20),
+            ],
           ),
         );
       },
@@ -284,144 +303,240 @@ class _EditPdfScreenState extends State<EditPdfScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text("Edit PDF"),
+        title: const Text("Edit PDF", style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
         actions: [
           if (_pages.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.add_circle_outline, size: 28, color: Colors.blue),
+              icon: const Icon(Icons.add_circle_outline, size: 28, color: Colors.greenAccent), // Green for Edit
               onPressed: _showAddOptions,
             ),
           const SizedBox(width: 10),
         ],
       ),
-      body: Column(
-        children: [
-          if (_pages.isEmpty && !_isLoading)
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.edit_document, size: 80, color: Colors.grey[300]),
-                    const SizedBox(height: 20),
-                    const Text("Select a PDF to Organize & Edit"),
-                    const SizedBox(height: 20),
-                    ElevatedButton.icon(
-                      onPressed: _pickAndAddPdf, 
-                      icon: const Icon(Icons.upload_file), 
-                      label: const Text("Select PDF File"),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else if (_isLoading)
-             const Expanded(child: Center(child: CircularProgressIndicator()))
-          else
-            Expanded(
-              child: ReorderableListView.builder(
-                padding: const EdgeInsets.all(10),
-                itemCount: _pages.length,
-                onReorder: (oldIndex, newIndex) {
-                  setState(() {
-                    if (newIndex > oldIndex) newIndex -= 1;
-                    final item = _pages.removeAt(oldIndex);
-                    _pages.insert(newIndex, item);
-                  });
-                },
-                itemBuilder: (context, index) {
-                  final item = _pages[index];
-                  return Card(
-                    key: ValueKey(item.hashCode),
-                    margin: const EdgeInsets.only(bottom: 10),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 60, height: 80,
-                            decoration: BoxDecoration(border: Border.all(color: Colors.grey[300]!), color: Colors.grey[200]),
-                            child: RotatedBox(
-                              quarterTurns: item.rotationAngle ~/ 90,
-                              child: Image.memory(item.thumbnailBytes, fit: BoxFit.contain),
-                            ),
-                          ),
-                          const SizedBox(width: 15),
-                          Expanded(
+      body: Container(
+        // Dark Theme Gradient (Same as others)
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                    : _pages.isEmpty
+                        // 👇👇👇 NEW LANDING PAGE (Consistent Style) 👇👇👇
+                        ? Center(
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text("Page ${index + 1}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                Text(item.type == PageType.pdfPage ? "Source: PDF" : "Source: Image", style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    // --- EDIT TEXT BUTTON (NEW) ---
-                                    if (item.type == PageType.pdfPage)
-                                      InkWell(
-                                        onTap: () => _editPageContent(index),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          margin: const EdgeInsets.only(right: 10),
-                                          decoration: BoxDecoration(color: Colors.orange[50], borderRadius: BorderRadius.circular(4)),
-                                          child: const Icon(Icons.edit_note, size: 20, color: Colors.orange),
-                                        ),
-                                      ),
-
-                                    InkWell(
-                                      onTap: () => setState(() => item.rotationAngle = (item.rotationAngle + 90) % 360),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(4)),
-                                        child: const Icon(Icons.rotate_right, size: 20, color: Colors.blue),
-                                      ),
+                                Container(
+                                  padding: const EdgeInsets.all(35),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.05),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.greenAccent.withOpacity(0.2), // Green Glow
+                                        blurRadius: 20,
+                                        spreadRadius: 5,
+                                      )
+                                    ]
+                                  ),
+                                  child: const Icon(Icons.edit_note, size: 80, color: Colors.greenAccent),
+                                ),
+                                const SizedBox(height: 40),
+                                const Text(
+                                  "Edit PDF",
+                                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                                const SizedBox(height: 15),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 40),
+                                  child: Text(
+                                    "Select a PDF to extract pages, reorder, rotate, or edit text.",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 16, color: Colors.white70, height: 1.5),
+                                  ),
+                                ),
+                                const SizedBox(height: 60),
+                                SizedBox(
+                                  width: 250,
+                                  height: 55,
+                                  child: ElevatedButton.icon(
+                                    onPressed: _pickAndAddPdf,
+                                    icon: const Icon(Icons.upload_file),
+                                    label: const Text("Select PDF File"),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color.fromARGB(100, 5, 205, 108), // Green Button
+                                      foregroundColor: const Color.fromARGB(255, 239, 230, 230), // Black text on Green looks cool
+                                      elevation: 8,
+                                      textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                                     ),
-                                    const SizedBox(width: 10),
-                                    InkWell(
-                                      onTap: () => setState(() => _pages.removeAt(index)),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(4)),
-                                        child: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 )
                               ],
                             ),
+                          )
+                        // 👇👇👇 NEW LIST VIEW (Glass Effect) 👇👇👇
+                        : ReorderableListView.builder(
+                            padding: const EdgeInsets.all(15),
+                            itemCount: _pages.length,
+                            onReorder: (oldIndex, newIndex) {
+                              setState(() {
+                                if (newIndex > oldIndex) newIndex -= 1;
+                                final item = _pages.removeAt(oldIndex);
+                                _pages.insert(newIndex, item);
+                              });
+                            },
+                            itemBuilder: (context, index) {
+                              final item = _pages[index];
+                              return Container(
+                                key: ValueKey(item.hashCode),
+                                margin: const EdgeInsets.only(bottom: 10),
+                                padding: const EdgeInsets.all(8.0),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.08), // Glass Effect
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    // Thumbnail Container
+                                    Container(
+                                      width: 60, height: 80,
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.white24),
+                                        borderRadius: BorderRadius.circular(6),
+                                        color: Colors.black12
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(5),
+                                        child: RotatedBox(
+                                          quarterTurns: item.rotationAngle ~/ 90,
+                                          child: Image.memory(item.thumbnailBytes, fit: BoxFit.contain),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 15),
+                                    
+                                    // Details & Actions
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text("Page ${index + 1}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                                          Text(item.type == PageType.pdfPage ? "Source: PDF" : "Source: Image", style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.5))),
+                                          const SizedBox(height: 10),
+                                          
+                                          // Action Buttons Row
+                                          Row(
+                                            children: [
+                                              // EDIT TEXT
+
+
+                                              // if (item.type == PageType.pdfPage)
+                                              //   _buildMiniButton(
+                                              //     icon: Icons.edit_note, 
+                                              //     color: Colors.orangeAccent, 
+                                              //     onTap: () => _editPageContent(index)
+                                              //   ),
+                                              // if (item.type == PageType.pdfPage) const SizedBox(width: 10),
+
+                                              // ROTATE
+                                              _buildMiniButton(
+                                                icon: Icons.rotate_right, 
+                                                color: Colors.blueAccent, 
+                                                onTap: () => setState(() => item.rotationAngle = (item.rotationAngle + 90) % 360)
+                                              ),
+                                              const SizedBox(width: 10),
+
+                                              // DELETE
+                                              _buildMiniButton(
+                                                icon: Icons.delete_outline, 
+                                                color: Colors.redAccent, 
+                                                onTap: () => setState(() => _pages.removeAt(index))
+                                              ),
+                                            ],
+                                          )
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(Icons.drag_handle, color: Colors.white.withOpacity(0.3)),
+                                  ],
+                                ),
+                              );
+                            },
                           ),
-                          const Icon(Icons.drag_handle, color: Colors.grey),
-                        ],
+              ),
+
+              // 👇👇👇 BOTTOM SAVE BUTTON 👇👇👇
+              if (_pages.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F2027).withOpacity(0.95),
+                    border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.greenAccent, // Green for Save
+                        foregroundColor: Colors.black, // Black text
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        elevation: 5,
+                      ),
+                      onPressed: _isSaving ? null : _savePdf,
+                      icon: _isSaving 
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                        : const Icon(Icons.save),
+                      label: Text(
+                        _isSaving ? "Saving..." : "Save PDF",
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-          if (_pages.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
-                  onPressed: _isSaving ? null : _savePdf,
-                  icon: _isSaving 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.save),
-                  label: Text(_isSaving ? "Saving..." : "Save PDF"),
+                  ),
                 ),
-              ),
-            ),
-        ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Helper for mini buttons
+  Widget _buildMiniButton({required IconData icon, required Color color, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(5),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.2), 
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(color: color.withOpacity(0.5), width: 0.5)
+        ),
+        child: Icon(icon, size: 18, color: color),
       ),
     );
   }
 }
 
-// --- INTERNAL EDITOR DIALOG (REUSED) ---
+// --- INTERNAL EDITOR DIALOG (Standard style kept for readability) ---
 class _PageTextEditorDialog extends StatefulWidget {
   final String initialText;
 
